@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <title>Smart Poultry Dashboard</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <style>
+
+        body{
+            margin:0;
+            padding:20px;
+            font-family:Arial;
+            background:#f0f2f5;
+        }
+
+        h1{
+            color:#333;
+        }
+
+        .grid{
+
+            display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+            gap:20px;
+        }
+
+        .card{
+
+            background:white;
+            padding:20px;
+            border-radius:10px;
+            box-shadow:0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .value{
+            font-size:40px;
+            font-weight:bold;
+        }
+
+        canvas{
+            background:white;
+            margin-top:20px;
+            border-radius:10px;
+            padding:20px;
+        }
+
+        button{
+
+            padding:10px 20px;
+            border:none;
+            background:#007bff;
+            color:white;
+            border-radius:5px;
+            cursor:pointer;
+        }
+
+    </style>
+
+</head>
+<body>
+
+<h1>Smart Poultry Dashboard</h1>
+
+<div style="margin-bottom:20px;">
+
+    <button onclick="loadData('minute')">Menit</button>
+
+    <button onclick="loadData('hour')">Jam</button>
+
+    <button onclick="loadData('day')">Hari</button>
+
+    <button onclick="loadData('week')">Minggu</button>
+
+    <button onclick="loadData('month')">Bulan</button>
+
+</div>
+
+<div class="grid">
+
+    <div class="card">
+        <h3>Suhu</h3>
+        <div class="value" id="suhu">0</div>
+    </div>
+
+    <div class="card">
+        <h3>Kelembaban</h3>
+        <div class="value" id="hum">0</div>
+    </div>
+
+    <div class="card">
+        <h3>Amonia</h3>
+        <div class="value" id="amonia">0</div>
+    </div>
+
+    <div class="card">
+        <h3>Pakan</h3>
+        <div class="value" id="feed">0%</div>
+    </div>
+
+</div>
+
+<canvas id="chart"></canvas>
+
+<script>
+
+let chart;
+
+async function latestData(){
+
+    let res = await fetch('/api/latest');
+
+    let data = await res.json();
+
+    document.getElementById('suhu').innerHTML =
+        data.suhu || 0;
+
+    document.getElementById('hum').innerHTML =
+        data.kelembaban || 0;
+
+    document.getElementById('amonia').innerHTML =
+        data.amonia || 0;
+
+    document.getElementById('feed').innerHTML =
+        (data.kapasitas_pakan || 0) + '%';
+}
+
+async function loadData(filter='hour'){
+
+    let res = await fetch(
+        '/api/history?filter=' + filter
+    );
+
+    let data = await res.json();
+
+    let labels = [];
+
+    let suhu = [];
+
+    let hum = [];
+
+    let amonia = [];
+
+    let feed = [];
+
+    data.forEach(row=>{
+
+        labels.push(
+            new Date(
+                row.created_at
+            ).toLocaleTimeString()
+        );
+
+        suhu.push(row.suhu);
+
+        hum.push(row.kelembaban);
+
+        amonia.push(row.amonia);
+
+        feed.push(row.kapasitas_pakan);
+    });
+
+    if(chart){
+        chart.destroy();
+    }
+
+    chart = new Chart(
+        document.getElementById('chart'),
+        {
+
+            type:'line',
+
+            data:{
+
+                labels:labels,
+
+                datasets:[
+
+                    {
+                        label:'Suhu',
+                        data:suhu
+                    },
+
+                    {
+                        label:'Kelembaban',
+                        data:hum
+                    },
+
+                    {
+                        label:'Amonia',
+                        data:amonia
+                    },
+
+                    {
+                        label:'Pakan',
+                        data:feed
+                    }
+
+                ]
+            }
+        }
+    );
+}
+
+latestData();
+
+loadData();
+
+setInterval(()=>{
+
+    latestData();
+
+    loadData();
+
+},3000);
+
+setInterval(()=>{
+
+    latestData();
+
+},3000);
+
+</script>
+
+</body>
+</html>
