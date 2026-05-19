@@ -1,227 +1,291 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
+
 <head>
 
-    <title>Smart Poultry Dashboard</title>
+    <meta charset="UTF-8">
+
+    <title>Smart Farming Unggas</title>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <style>
 
         body{
+
             margin:0;
             padding:20px;
+
+            background:#f5f1e8;
+
             font-family:Arial;
-            background:#f0f2f5;
+
         }
 
         h1{
-            color:#333;
+
+            text-align:center;
+
+            color:#6b4f2a;
+
         }
 
         .grid{
 
             display:grid;
-            grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+
+            grid-template-columns:
+            repeat(auto-fit,minmax(350px,1fr));
+
             gap:20px;
+
+            margin-top:30px;
+
         }
 
         .card{
 
             background:white;
+
+            border-radius:20px;
+
             padding:20px;
-            border-radius:10px;
-            box-shadow:0 0 10px rgba(0,0,0,0.1);
+
+            box-shadow:0 5px 15px rgba(0,0,0,0.1);
+
         }
 
-        .value{
-            font-size:40px;
+        .title{
+
+            font-size:22px;
+
             font-weight:bold;
+
+            color:#8b5e3c;
+
+            margin-bottom:15px;
+
+        }
+
+        .info{
+
+            margin:5px 0;
+
+            font-size:16px;
+
+        }
+
+        .status{
+
+            padding:8px 12px;
+
+            border-radius:10px;
+
+            color:white;
+
+            display:inline-block;
+
+            margin-top:10px;
+
+            font-weight:bold;
+
+        }
+
+        .AMAN{
+
+            background:green;
+
+        }
+
+        .WASPADA{
+
+            background:orange;
+
+        }
+
+        .BAHAYA{
+
+            background:red;
+
         }
 
         canvas{
-            background:white;
+
             margin-top:20px;
-            border-radius:10px;
-            padding:20px;
-        }
 
-        button{
+            max-height:180px;
 
-            padding:10px 20px;
-            border:none;
-            background:#007bff;
-            color:white;
-            border-radius:5px;
-            cursor:pointer;
         }
 
     </style>
 
 </head>
+
 <body>
 
-<h1>Smart Poultry Dashboard V1</h1>
+    <h1>
+        🐔 SMART FARMING UNGGAS
+    </h1>
 
-<div style="margin-bottom:20px;">
-
-    <button onclick="loadData('minute')">Menit</button>
-
-    <button onclick="loadData('hour')">Jam</button>
-
-    <button onclick="loadData('day')">Hari</button>
-
-    <button onclick="loadData('week')">Minggu</button>
-
-    <button onclick="loadData('month')">Bulan</button>
-
-</div>
-
-<div class="grid">
-
-    <div class="card">
-        <h3>Suhu</h3>
-        <div class="value" id="suhu">0</div>
-    </div>
-
-    <div class="card">
-        <h3>Kelembaban</h3>
-        <div class="value" id="hum">0</div>
-    </div>
-
-    <div class="card">
-        <h3>Amonia</h3>
-        <div class="value" id="amonia">0</div>
-    </div>
-
-    <div class="card">
-        <h3>Pakan</h3>
-        <div class="value" id="feed">0%</div>
-    </div>
-
-</div>
-
-<canvas id="chart"></canvas>
+    <div class="grid" id="grid"></div>
 
 <script>
 
-let chart;
+async function loadDashboard(){
 
-async function latestData(){
+    const response =
+    await fetch('/api/latest-all')
 
-    let res = await fetch('/api/latest');
+    const devices =
+    await response.json()
 
-    let data = await res.json();
+    const grid =
+    document.getElementById('grid')
 
-    document.getElementById('suhu').innerHTML =
-        data.suhu || 0;
+    grid.innerHTML = ""
 
-    document.getElementById('hum').innerHTML =
-        data.kelembaban || 0;
+    for(const d of devices){
 
-    document.getElementById('amonia').innerHTML =
-        data.amonia || 0;
+        const card =
+        document.createElement('div')
 
-    document.getElementById('feed').innerHTML =
-        (data.kapasitas_pakan || 0) + '%';
-}
+        card.className = "card"
 
-async function loadData(filter='hour'){
+        card.innerHTML = `
 
-    let res = await fetch(
-        '/api/history?filter=' + filter
-    );
+            <div class="title">
+                🐔 ${d.nama_esp}
+            </div>
 
-    let data = await res.json();
+            <div class="info">
+                🌡️ Suhu : ${d.suhu} °C
+            </div>
 
-    let labels = [];
+            <div class="info">
+                💧 Kelembaban : ${d.kelembaban} %
+            </div>
 
-    let suhu = [];
+            <div class="info">
+                ☣️ Amonia : ${d.amonia} ppm
+            </div>
 
-    let hum = [];
+            <div class="info">
+                🌾 Pakan : ${d.kapasitas_pakan} %
+            </div>
 
-    let amonia = [];
+            <div class="status ${d.status}">
+                ${d.status}
+            </div>
 
-    let feed = [];
+            <canvas id="chart-${d.nama_esp}"></canvas>
 
-    data.forEach(row=>{
+        `
 
-        labels.push(
-            new Date(
-                row.created_at
-            ).toLocaleTimeString()
-        );
+        grid.appendChild(card)
 
-        suhu.push(row.suhu);
+        loadChart(d.nama_esp)
 
-        hum.push(row.kelembaban);
-
-        amonia.push(row.amonia);
-
-        feed.push(row.kapasitas_pakan);
-    });
-
-    if(chart){
-        chart.destroy();
     }
 
-    chart = new Chart(
-        document.getElementById('chart'),
-        {
-
-            type:'line',
-
-            data:{
-
-                labels:labels,
-
-                datasets:[
-
-                    {
-                        label:'Suhu',
-                        data:suhu
-                    },
-
-                    {
-                        label:'Kelembaban',
-                        data:hum
-                    },
-
-                    {
-                        label:'Amonia',
-                        data:amonia
-                    },
-
-                    {
-                        label:'Pakan',
-                        data:feed
-                    }
-
-                ]
-            }
-        }
-    );
 }
 
-latestData();
+async function loadChart(device){
 
-loadData();
+    const response =
+    await fetch(
+        `/api/history?device=${device}&filter=hour`
+    )
 
-setInterval(()=>{
+    const data =
+    await response.json()
 
-    latestData();
+    const labels =
+    data.map(x => x.created_at.slice(11,16))
 
-    loadData();
+    const suhu =
+    data.map(x => x.suhu)
 
-},3000);
+    const amonia =
+    data.map(x => x.amonia)
 
-setInterval(()=>{
+    const kelembaban =
+    data.map(x => x.kelembaban)
 
-    latestData();
+    const ctx =
+    document.getElementById(
+        `chart-${device}`
+    )
 
-},3000);
+    new Chart(ctx,{
+
+        type:'line',
+
+        data:{
+
+            labels:labels,
+
+            datasets:[
+
+                {
+
+                    label:'Suhu',
+
+                    data:suhu,
+
+                    borderWidth:2
+
+                },
+
+                {
+
+                    label:'Amonia',
+
+                    data:amonia,
+
+                    borderWidth:2
+
+                },
+
+                {
+
+                    label:'Kelembaban',
+
+                    data:kelembaban,
+
+                    borderWidth:2
+
+                }
+
+            ]
+
+        },
+
+        options:{
+
+            responsive:true,
+
+            plugins:{
+
+                legend:{
+
+                    display:true
+
+                }
+
+            }
+
+        }
+
+    })
+
+}
+
+loadDashboard()
+
+setInterval(
+    loadDashboard,
+    5000
+)
 
 </script>
 
