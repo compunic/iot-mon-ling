@@ -11,6 +11,10 @@
 
     <style>
 
+        *{
+            box-sizing:border-box;
+        }
+
         body{
 
             margin:0;
@@ -18,7 +22,7 @@
 
             background:#f5f1e8;
 
-            font-family:Arial;
+            font-family:Arial,sans-serif;
 
         }
 
@@ -27,6 +31,18 @@
             text-align:center;
 
             color:#6b4f2a;
+
+            margin-bottom:10px;
+
+        }
+
+        .subtitle{
+
+            text-align:center;
+
+            color:#8b5e3c;
+
+            margin-bottom:30px;
 
         }
 
@@ -39,8 +55,6 @@
 
             gap:20px;
 
-            margin-top:30px;
-
         }
 
         .card{
@@ -52,6 +66,14 @@
             padding:20px;
 
             box-shadow:0 5px 15px rgba(0,0,0,0.1);
+
+            transition:0.3s;
+
+        }
+
+        .card:hover{
+
+            transform:translateY(-5px);
 
         }
 
@@ -69,15 +91,17 @@
 
         .info{
 
-            margin:5px 0;
+            margin:8px 0;
 
             font-size:16px;
+
+            color:#333;
 
         }
 
         .status{
 
-            padding:8px 12px;
+            padding:8px 14px;
 
             border-radius:10px;
 
@@ -109,11 +133,103 @@
 
         }
 
+        .warning{
+
+            margin-top:12px;
+
+            padding:10px;
+
+            border-radius:10px;
+
+            font-weight:bold;
+
+            color:white;
+
+        }
+
+        .warning-danger{
+
+            background:red;
+
+        }
+
+        .warning-warning{
+
+            background:orange;
+
+        }
+
+        .warning-safe{
+
+            background:green;
+
+        }
+
+        .progress-container{
+
+            width:100%;
+
+            background:#ddd;
+
+            border-radius:20px;
+
+            margin-top:10px;
+
+            overflow:hidden;
+
+            height:25px;
+
+        }
+
+        .progress-bar{
+
+            height:100%;
+
+            text-align:center;
+
+            color:white;
+
+            font-weight:bold;
+
+            line-height:25px;
+
+        }
+
+        .bar-high{
+
+            background:green;
+
+        }
+
+        .bar-medium{
+
+            background:orange;
+
+        }
+
+        .bar-low{
+
+            background:red;
+
+        }
+
         canvas{
 
             margin-top:20px;
 
-            max-height:180px;
+            max-height:220px;
+
+        }
+
+        .footer{
+
+            margin-top:40px;
+
+            text-align:center;
+
+            color:#777;
+
+            font-size:14px;
 
         }
 
@@ -127,7 +243,15 @@
         🐔 SMART FARMING UNGGAS
     </h1>
 
+    <div class="subtitle">
+        Monitoring Realtime Suhu, Amonia, Kelembaban dan Pakan
+    </div>
+
     <div class="grid" id="grid"></div>
+
+    <div class="footer">
+        Smart Poultry Monitoring System
+    </div>
 
 <script>
 
@@ -151,6 +275,29 @@ async function loadDashboard(){
 
         card.className = "card"
 
+        let warningClass = "warning-safe"
+        let warningText = "✅ PAKAN AMAN"
+
+        let barClass = "bar-high"
+
+        if(d.kapasitas_pakan <= 20){
+
+            warningClass = "warning-danger"
+            warningText = "⚠️ PAKAN HAMPIR HABIS"
+
+            barClass = "bar-low"
+
+        }
+
+        else if(d.kapasitas_pakan <= 40){
+
+            warningClass = "warning-warning"
+            warningText = "⚠️ PAKAN MENIPIS"
+
+            barClass = "bar-medium"
+
+        }
+
         card.innerHTML = `
 
             <div class="title">
@@ -158,19 +305,40 @@ async function loadDashboard(){
             </div>
 
             <div class="info">
-                🌡️ Suhu : ${d.suhu} °C
+                🌡️ Suhu :
+                <b>${d.suhu} °C</b>
             </div>
 
             <div class="info">
-                💧 Kelembaban : ${d.kelembaban} %
+                💧 Kelembaban :
+                <b>${d.kelembaban} %</b>
             </div>
 
             <div class="info">
-                ☣️ Amonia : ${d.amonia} ppm
+                ☣️ Amonia :
+                <b>${d.amonia} ppm</b>
             </div>
 
             <div class="info">
-                🌾 Pakan : ${d.kapasitas_pakan} %
+                🌾 Kapasitas Pakan :
+                <b>${d.kapasitas_pakan} %</b>
+            </div>
+
+            <div class="progress-container">
+
+                <div
+                    class="progress-bar ${barClass}"
+                    style="width:${d.kapasitas_pakan}%"
+                >
+
+                    ${d.kapasitas_pakan}%
+
+                </div>
+
+            </div>
+
+            <div class="warning ${warningClass}">
+                ${warningText}
             </div>
 
             <div class="status ${d.status}">
@@ -200,16 +368,29 @@ async function loadChart(device){
     await response.json()
 
     const labels =
-    data.map(x => x.created_at.slice(11,16))
+    data.map(
+        x => x.created_at.slice(11,16)
+    )
 
     const suhu =
-    data.map(x => x.suhu)
+    data.map(
+        x => x.suhu
+    )
 
     const amonia =
-    data.map(x => x.amonia)
+    data.map(
+        x => x.amonia
+    )
 
     const kelembaban =
-    data.map(x => x.kelembaban)
+    data.map(
+        x => x.kelembaban
+    )
+
+    const pakan =
+    data.map(
+        x => x.kapasitas_pakan
+    )
 
     const ctx =
     document.getElementById(
@@ -232,7 +413,9 @@ async function loadChart(device){
 
                     data:suhu,
 
-                    borderWidth:2
+                    borderWidth:2,
+
+                    tension:0.3
 
                 },
 
@@ -242,7 +425,9 @@ async function loadChart(device){
 
                     data:amonia,
 
-                    borderWidth:2
+                    borderWidth:2,
+
+                    tension:0.3
 
                 },
 
@@ -252,7 +437,21 @@ async function loadChart(device){
 
                     data:kelembaban,
 
-                    borderWidth:2
+                    borderWidth:2,
+
+                    tension:0.3
+
+                },
+
+                {
+
+                    label:'Pakan',
+
+                    data:pakan,
+
+                    borderWidth:2,
+
+                    tension:0.3
 
                 }
 
@@ -264,11 +463,25 @@ async function loadChart(device){
 
             responsive:true,
 
+            maintainAspectRatio:false,
+
             plugins:{
 
                 legend:{
 
-                    display:true
+                    display:true,
+
+                    position:'bottom'
+
+                }
+
+            },
+
+            scales:{
+
+                y:{
+
+                    beginAtZero:true
 
                 }
 
