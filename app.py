@@ -1,8 +1,6 @@
 from flask import Flask, request, jsonify, render_template, redirect
 import sqlite3
-
 from datetime import datetime, timedelta
-
 import pytz
 
 app = Flask(__name__)
@@ -47,13 +45,12 @@ def init_db():
     """)
 
     conn.commit()
-
     conn.close()
 
 init_db()
 
 # =====================================================
-# GET CURRENT TIME WIB
+# GET TIME WIB
 # =====================================================
 def now_wib():
 
@@ -62,7 +59,20 @@ def now_wib():
     )
 
 # =====================================================
-# RECEIVE DATA FROM ESP32
+# AUTO STATUS
+# =====================================================
+def generate_status(suhu, amonia):
+
+    if suhu >= 33 or amonia >= 30:
+        return "BAHAYA"
+
+    elif suhu >= 30 or amonia >= 20:
+        return "WASPADA"
+
+    return "AMAN"
+
+# =====================================================
+# RECEIVE DATA ESP32
 # =====================================================
 @app.route('/receive', methods=['POST'])
 def receive():
@@ -70,6 +80,20 @@ def receive():
     data = request.json
 
     try:
+
+        nama_esp = data.get("nama_esp", "Unknown")
+
+        suhu = float(data.get("suhu", 0))
+        kelembaban = float(data.get("kelembaban", 0))
+        amonia = float(data.get("amonia", 0))
+
+        jarak_pakan = float(data.get("jarak_pakan", 0))
+        kapasitas_pakan = float(data.get("kapasitas_pakan", 0))
+
+        status = generate_status(
+            suhu,
+            amonia
+        )
 
         conn = sqlite3.connect(DB)
 
@@ -98,22 +122,22 @@ def receive():
 
         """, (
 
-            data.get("nama_esp"),
+            nama_esp,
 
-            data.get("suhu"),
-            data.get("kelembaban"),
-            data.get("amonia"),
+            suhu,
+            kelembaban,
+            amonia,
 
-            data.get("jarak_pakan"),
-            data.get("kapasitas_pakan"),
+            jarak_pakan,
+            kapasitas_pakan,
 
-            data.get("status"),
+            status,
 
             now_wib()
+
         ))
 
         conn.commit()
-
         conn.close()
 
         return jsonify({
@@ -128,10 +152,10 @@ def receive():
         })
 
 # =====================================================
-# API LAST DATA
+# API LAST ALL DEVICES
 # =====================================================
-@app.route('/api/latest')
-def latest():
+@app.route('/api/latest-all')
+def latest_all():
 
     conn = sqlite3.connect(DB)
 
@@ -141,29 +165,36 @@ def latest():
 
     c.execute("""
 
-    SELECT * FROM sensor_data
+    SELECT *
+    FROM sensor_data
+    WHERE id IN (
 
-    ORDER BY id DESC
+        SELECT MAX(id)
+        FROM sensor_data
+        GROUP BY nama_esp
 
-    LIMIT 1
+    )
+
+    ORDER BY nama_esp ASC
 
     """)
 
-    data = c.fetchone()
+    rows = c.fetchall()
 
     conn.close()
 
-    if data:
-
-        return jsonify(dict(data))
-
-    return jsonify({})
+    return jsonify([
+        dict(x)
+        for x in rows
+    ])
 
 # =====================================================
 # API HISTORY
 # =====================================================
 @app.route('/api/history')
 def history():
+
+    device = request.args.get("device")
 
     filter_type = request.args.get(
         "filter",
@@ -204,13 +235,15 @@ def history():
 
     c.execute("""
 
-    SELECT * FROM sensor_data
+    SELECT *
+    FROM sensor_data
 
     WHERE created_at >= ?
+    AND nama_esp = ?
 
     ORDER BY id ASC
 
-    """, (start_str,))
+    """, (start_str, device))
 
     rows = c.fetchall()
 
@@ -232,7 +265,7 @@ def dashboard():
     )
 
 # =====================================================
-# ADMIN PAGE
+# ADMIN
 # =====================================================
 @app.route('/admin')
 def admin():
@@ -245,11 +278,12 @@ def admin():
 
     c.execute("""
 
-    SELECT * FROM sensor_data
+    SELECT *
+    FROM sensor_data
 
     ORDER BY id DESC
 
-    LIMIT 100
+    LIMIT 200
 
     """)
 
@@ -263,7 +297,7 @@ def admin():
     )
 
 # =====================================================
-# DELETE ALL DATA
+# DELETE ALL
 # =====================================================
 @app.route('/delete-all')
 def delete_all():
@@ -277,13 +311,12 @@ def delete_all():
     )
 
     conn.commit()
-
     conn.close()
 
     return redirect('/admin')
 
 # =====================================================
-# SERVER STATUS
+# STATUS SERVER
 # =====================================================
 @app.route('/status')
 def status():
@@ -293,10 +326,11 @@ def status():
         "server": "online",
 
         "time": now_wib()
+
     })
 
 # =====================================================
-# RUN SERVER
+# RUN
 # =====================================================
 if __name__ == '__main__':
 
@@ -307,4 +341,5 @@ if __name__ == '__main__':
         port=5002,
 
         debug=True
+
     )
