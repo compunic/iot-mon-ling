@@ -1,54 +1,71 @@
 <!DOCTYPE html>
 <html>
+
 <head>
 
-    <title>Admin Panel</title>
+    <title>Admin</title>
 
     <style>
 
         body{
+
             font-family:Arial;
             padding:20px;
+
         }
 
         table{
 
             width:100%;
             border-collapse:collapse;
+
         }
 
-        th, td{
+        th,td{
 
-            border:1px solid #ddd;
+            border:1px solid #ccc;
+
             padding:10px;
+
+            text-align:center;
+
         }
 
         th{
-            background:#333;
-            color:white;
+
+            background:#eee;
+
         }
 
         a{
 
-            padding:10px 20px;
+            display:inline-block;
+
+            margin-bottom:20px;
+
+            padding:10px 15px;
+
             background:red;
+
             color:white;
+
             text-decoration:none;
-            border-radius:5px;
+
+            border-radius:10px;
+
         }
 
     </style>
 
 </head>
+
 <body>
 
-<h1>Admin Backend</h1>
+<h1>Admin Monitoring</h1>
 
-<p>
-    <a href="/delete-all">
-        Hapus Semua Data
-    </a>
-</p>
+<a href="/delete-all">
+    Hapus Semua Data
+</a>
 
 <table>
 
@@ -56,31 +73,38 @@
 
     <th>ID</th>
     <th>ESP</th>
+
     <th>Suhu</th>
     <th>Kelembaban</th>
     <th>Amonia</th>
+
     <th>Pakan</th>
+
+    <th>Status</th>
+
     <th>Waktu</th>
 
 </tr>
 
-{% for row in data %}
+{% for d in data %}
 
 <tr>
 
-    <td>{{ row.id }}</td>
+    <td>{{ d.id }}</td>
 
-    <td>{{ row.nama_esp }}</td>
+    <td>{{ d.nama_esp }}</td>
 
-    <td>{{ row.suhu }}</td>
+    <td>{{ d.suhu }}</td>
 
-    <td>{{ row.kelembaban }}</td>
+    <td>{{ d.kelembaban }}</td>
 
-    <td>{{ row.amonia }}</td>
+    <td>{{ d.amonia }}</td>
 
-    <td>{{ row.kapasitas_pakan }}%</td>
+    <td>{{ d.kapasitas_pakan }}</td>
 
-    <td>{{ row.created_at }}</td>
+    <td>{{ d.status }}</td>
+
+    <td>{{ d.created_at }}</td>
 
 </tr>
 
