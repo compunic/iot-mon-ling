@@ -375,6 +375,23 @@ async function loadDashboard(){
 
     for(const d of devices){
 
+        if(!currentFilters[d.nama_esp]){
+
+            currentFilters[d.nama_esp] = {
+
+                filter:'hour',
+
+                start:'',
+
+                end:''
+
+            }
+
+        }
+
+        const currentFilter =
+        currentFilters[d.nama_esp]
+
         const card =
         document.createElement('div')
 
@@ -458,27 +475,57 @@ async function loadDashboard(){
                     onchange="changeFilter('${d.nama_esp}')"
                 >
 
-                    <option value="minute">
+                    <option
+                        value="minute"
+                        ${currentFilter.filter === 'minute'
+                            ? 'selected'
+                            : ''}
+                    >
                         Per Menit
                     </option>
 
-                    <option value="hour" selected>
+                    <option
+                        value="hour"
+                        ${currentFilter.filter === 'hour'
+                            ? 'selected'
+                            : ''}
+                    >
                         Per Jam
                     </option>
 
-                    <option value="day">
+                    <option
+                        value="day"
+                        ${currentFilter.filter === 'day'
+                            ? 'selected'
+                            : ''}
+                    >
                         Per Hari
                     </option>
 
-                    <option value="week">
+                    <option
+                        value="week"
+                        ${currentFilter.filter === 'week'
+                            ? 'selected'
+                            : ''}
+                    >
                         Per Minggu
                     </option>
 
-                    <option value="month">
+                    <option
+                        value="month"
+                        ${currentFilter.filter === 'month'
+                            ? 'selected'
+                            : ''}
+                    >
                         Per Bulan
                     </option>
 
-                    <option value="custom">
+                    <option
+                        value="custom"
+                        ${currentFilter.filter === 'custom'
+                            ? 'selected'
+                            : ''}
+                    >
                         Rentang Waktu
                     </option>
 
@@ -489,16 +536,23 @@ async function loadDashboard(){
             <div
                 class="custom-range"
                 id="custom-${d.nama_esp}"
+                style="
+                    ${currentFilter.filter === 'custom'
+                        ? 'display:block'
+                        : 'display:none'}
+                "
             >
 
                 <input
                     type="datetime-local"
                     id="start-${d.nama_esp}"
+                    value="${currentFilter.start}"
                 >
 
                 <input
                     type="datetime-local"
                     id="end-${d.nama_esp}"
+                    value="${currentFilter.end}"
                 >
 
                 <button
@@ -522,21 +576,16 @@ async function loadDashboard(){
 
         grid.appendChild(card)
 
-        if(!currentFilters[d.nama_esp]){
-
-            currentFilters[d.nama_esp] = {
-                filter:'hour',
-                start:'',
-                end:''
-            }
-
-        }
-
         loadChart(
+
             d.nama_esp,
-            currentFilters[d.nama_esp].filter,
-            currentFilters[d.nama_esp].start,
-            currentFilters[d.nama_esp].end
+
+            currentFilter.filter,
+
+            currentFilter.start,
+
+            currentFilter.end
+
         )
 
     }
@@ -566,9 +615,13 @@ function changeFilter(device){
         customDiv.style.display = "none"
 
         currentFilters[device] = {
+
             filter:filter,
+
             start:'',
+
             end:''
+
         }
 
         loadChart(device, filter)
@@ -591,32 +644,48 @@ function applyCustomFilter(device){
 
     if(!start || !end){
 
-        alert("Pilih tanggal awal dan akhir")
+        alert(
+            "Pilih tanggal awal dan akhir"
+        )
 
         return
 
     }
 
     currentFilters[device] = {
+
         filter:'custom',
+
         start:start,
+
         end:end
+
     }
 
     loadChart(
+
         device,
+
         'custom',
+
         start,
+
         end
+
     )
 
 }
 
 async function loadChart(
+
     device,
+
     filter='hour',
+
     start='',
+
     end=''
+
 ){
 
     let url =
@@ -624,7 +693,8 @@ async function loadChart(
 
     if(filter === 'custom'){
 
-        url += `&start=${start}&end=${end}`
+        url +=
+        `&start=${start}&end=${end}`
 
     }
 
