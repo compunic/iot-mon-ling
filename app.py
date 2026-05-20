@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify, render_template, redirect
 import sqlite3
+
 from datetime import datetime, timedelta
+
 import pytz
 
 app = Flask(__name__)
@@ -81,14 +83,30 @@ def receive():
 
     try:
 
-        nama_esp = data.get("nama_esp", "Unknown")
+        nama_esp = data.get(
+            "nama_esp",
+            "Unknown"
+        )
 
-        suhu = float(data.get("suhu", 0))
-        kelembaban = float(data.get("kelembaban", 0))
-        amonia = float(data.get("amonia", 0))
+        suhu = float(
+            data.get("suhu", 0)
+        )
 
-        jarak_pakan = float(data.get("jarak_pakan", 0))
-        kapasitas_pakan = float(data.get("kapasitas_pakan", 0))
+        kelembaban = float(
+            data.get("kelembaban", 0)
+        )
+
+        amonia = float(
+            data.get("amonia", 0)
+        )
+
+        jarak_pakan = float(
+            data.get("jarak_pakan", 0)
+        )
+
+        kapasitas_pakan = float(
+            data.get("kapasitas_pakan", 0)
+        )
 
         status = generate_status(
             suhu,
@@ -141,14 +159,18 @@ def receive():
         conn.close()
 
         return jsonify({
+
             "success": True
+
         })
 
     except Exception as e:
 
         return jsonify({
+
             "success": False,
             "error": str(e)
+
         })
 
 # =====================================================
@@ -167,6 +189,7 @@ def latest_all():
 
     SELECT *
     FROM sensor_data
+
     WHERE id IN (
 
         SELECT MAX(id)
@@ -184,8 +207,11 @@ def latest_all():
     conn.close()
 
     return jsonify([
+
         dict(x)
+
         for x in rows
+
     ])
 
 # =====================================================
@@ -194,38 +220,63 @@ def latest_all():
 @app.route('/api/history')
 def history():
 
-    device = request.args.get("device")
+    device = request.args.get(
+        "device"
+    )
 
     filter_type = request.args.get(
         "filter",
         "hour"
     )
 
+    start_custom = request.args.get(
+        "start"
+    )
+
+    end_custom = request.args.get(
+        "end"
+    )
+
     now = datetime.now(TZ)
 
+    # ==========================================
+    # FILTER TIME
+    # ==========================================
     if filter_type == "minute":
 
-        start = now - timedelta(minutes=60)
+        start = now - timedelta(hours=1)
 
-    elif filter_type == "day":
+    elif filter_type == "hour":
 
         start = now - timedelta(days=1)
 
+    elif filter_type == "day":
+
+        start = now - timedelta(days=7)
+
     elif filter_type == "week":
 
-        start = now - timedelta(weeks=1)
+        start = now - timedelta(days=30)
 
     elif filter_type == "month":
 
-        start = now - timedelta(days=30)
+        start = now - timedelta(days=365)
+
+    elif filter_type == "custom":
+
+        start = datetime.strptime(
+            start_custom,
+            "%Y-%m-%dT%H:%M"
+        )
+
+        end = datetime.strptime(
+            end_custom,
+            "%Y-%m-%dT%H:%M"
+        )
 
     else:
 
         start = now - timedelta(hours=1)
-
-    start_str = start.strftime(
-        "%Y-%m-%d %H:%M:%S"
-    )
 
     conn = sqlite3.connect(DB)
 
@@ -233,25 +284,70 @@ def history():
 
     c = conn.cursor()
 
-    c.execute("""
+    # ==========================================
+    # CUSTOM RANGE
+    # ==========================================
+    if filter_type == "custom":
 
-    SELECT *
-    FROM sensor_data
+        c.execute("""
 
-    WHERE created_at >= ?
-    AND nama_esp = ?
+        SELECT *
+        FROM sensor_data
 
-    ORDER BY id ASC
+        WHERE nama_esp = ?
+        AND created_at BETWEEN ? AND ?
 
-    """, (start_str, device))
+        ORDER BY created_at ASC
+
+        """, (
+
+            device,
+
+            start.strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+
+            end.strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
+        ))
+
+    # ==========================================
+    # NORMAL FILTER
+    # ==========================================
+    else:
+
+        c.execute("""
+
+        SELECT *
+        FROM sensor_data
+
+        WHERE nama_esp = ?
+        AND created_at >= ?
+
+        ORDER BY created_at ASC
+
+        """, (
+
+            device,
+
+            start.strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
+        ))
 
     rows = c.fetchall()
 
     conn.close()
 
     return jsonify([
+
         dict(x)
+
         for x in rows
+
     ])
 
 # =====================================================
@@ -265,7 +361,7 @@ def dashboard():
     )
 
 # =====================================================
-# ADMIN
+# ADMIN PANEL
 # =====================================================
 @app.route('/admin')
 def admin():
@@ -292,12 +388,15 @@ def admin():
     conn.close()
 
     return render_template(
+
         "admin.html",
+
         data=data
+
     )
 
 # =====================================================
-# DELETE ALL
+# DELETE ALL DATA
 # =====================================================
 @app.route('/delete-all')
 def delete_all():
@@ -316,7 +415,7 @@ def delete_all():
     return redirect('/admin')
 
 # =====================================================
-# STATUS SERVER
+# SERVER STATUS
 # =====================================================
 @app.route('/status')
 def status():
@@ -325,12 +424,14 @@ def status():
 
         "server": "online",
 
+        "timezone": "Asia/Jakarta",
+
         "time": now_wib()
 
     })
 
 # =====================================================
-# RUN
+# RUN SERVER
 # =====================================================
 if __name__ == '__main__':
 
