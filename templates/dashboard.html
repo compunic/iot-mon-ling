@@ -5,6 +5,11 @@
 
     <meta charset="UTF-8">
 
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
     <title>Smart Farming Unggas</title>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -51,7 +56,7 @@
             display:grid;
 
             grid-template-columns:
-            repeat(auto-fit,minmax(350px,1fr));
+            repeat(auto-fit,minmax(380px,1fr));
 
             gap:20px;
 
@@ -213,11 +218,97 @@
 
         }
 
-        canvas{
+        .chart-header{
 
             margin-top:20px;
 
-            max-height:220px;
+            display:flex;
+
+            gap:10px;
+
+            flex-wrap:wrap;
+
+        }
+
+        .chart-filter{
+
+            flex:1;
+
+            min-width:150px;
+
+            padding:10px;
+
+            border-radius:10px;
+
+            border:1px solid #ccc;
+
+            outline:none;
+
+        }
+
+        .custom-range{
+
+            display:none;
+
+            margin-top:10px;
+
+        }
+
+        .custom-range input{
+
+            width:100%;
+
+            margin-bottom:10px;
+
+            padding:10px;
+
+            border-radius:10px;
+
+            border:1px solid #ccc;
+
+        }
+
+        .btn-filter{
+
+            width:100%;
+
+            padding:10px;
+
+            border:none;
+
+            border-radius:10px;
+
+            background:#6b4f2a;
+
+            color:white;
+
+            font-weight:bold;
+
+            cursor:pointer;
+
+        }
+
+        .btn-filter:hover{
+
+            opacity:0.9;
+
+        }
+
+        .chart-container{
+
+            margin-top:20px;
+
+            position:relative;
+
+            height:260px;
+
+        }
+
+        canvas{
+
+            width:100% !important;
+
+            height:100% !important;
 
         }
 
@@ -230,6 +321,16 @@
             color:#777;
 
             font-size:14px;
+
+        }
+
+        @media(max-width:768px){
+
+            body{
+
+                padding:10px;
+
+            }
 
         }
 
@@ -254,6 +355,10 @@
     </div>
 
 <script>
+
+const charts = {}
+
+const currentFilters = {}
 
 async function loadDashboard(){
 
@@ -345,59 +450,237 @@ async function loadDashboard(){
                 ${d.status}
             </div>
 
-            <canvas id="chart-${d.nama_esp}"></canvas>
+            <div class="chart-header">
+
+                <select
+                    class="chart-filter"
+                    id="filter-${d.nama_esp}"
+                    onchange="changeFilter('${d.nama_esp}')"
+                >
+
+                    <option value="minute">
+                        Per Menit
+                    </option>
+
+                    <option value="hour" selected>
+                        Per Jam
+                    </option>
+
+                    <option value="day">
+                        Per Hari
+                    </option>
+
+                    <option value="week">
+                        Per Minggu
+                    </option>
+
+                    <option value="month">
+                        Per Bulan
+                    </option>
+
+                    <option value="custom">
+                        Rentang Waktu
+                    </option>
+
+                </select>
+
+            </div>
+
+            <div
+                class="custom-range"
+                id="custom-${d.nama_esp}"
+            >
+
+                <input
+                    type="datetime-local"
+                    id="start-${d.nama_esp}"
+                >
+
+                <input
+                    type="datetime-local"
+                    id="end-${d.nama_esp}"
+                >
+
+                <button
+                    class="btn-filter"
+                    onclick="applyCustomFilter('${d.nama_esp}')"
+                >
+
+                    Terapkan Filter
+
+                </button>
+
+            </div>
+
+            <div class="chart-container">
+
+                <canvas id="chart-${d.nama_esp}"></canvas>
+
+            </div>
 
         `
 
         grid.appendChild(card)
 
-        loadChart(d.nama_esp)
+        if(!currentFilters[d.nama_esp]){
+
+            currentFilters[d.nama_esp] = {
+                filter:'hour',
+                start:'',
+                end:''
+            }
+
+        }
+
+        loadChart(
+            d.nama_esp,
+            currentFilters[d.nama_esp].filter,
+            currentFilters[d.nama_esp].start,
+            currentFilters[d.nama_esp].end
+        )
 
     }
 
 }
 
-async function loadChart(device){
+function changeFilter(device){
+
+    const filter =
+    document.getElementById(
+        `filter-${device}`
+    ).value
+
+    const customDiv =
+    document.getElementById(
+        `custom-${device}`
+    )
+
+    if(filter === "custom"){
+
+        customDiv.style.display = "block"
+
+    }
+
+    else{
+
+        customDiv.style.display = "none"
+
+        currentFilters[device] = {
+            filter:filter,
+            start:'',
+            end:''
+        }
+
+        loadChart(device, filter)
+
+    }
+
+}
+
+function applyCustomFilter(device){
+
+    const start =
+    document.getElementById(
+        `start-${device}`
+    ).value
+
+    const end =
+    document.getElementById(
+        `end-${device}`
+    ).value
+
+    if(!start || !end){
+
+        alert("Pilih tanggal awal dan akhir")
+
+        return
+
+    }
+
+    currentFilters[device] = {
+        filter:'custom',
+        start:start,
+        end:end
+    }
+
+    loadChart(
+        device,
+        'custom',
+        start,
+        end
+    )
+
+}
+
+async function loadChart(
+    device,
+    filter='hour',
+    start='',
+    end=''
+){
+
+    let url =
+    `/api/history?device=${device}&filter=${filter}`
+
+    if(filter === 'custom'){
+
+        url += `&start=${start}&end=${end}`
+
+    }
 
     const response =
-    await fetch(
-        `/api/history?device=${device}&filter=hour`
-    )
+    await fetch(url)
 
     const data =
     await response.json()
 
     const labels =
-    data.map(
-        x => x.created_at.slice(11,16)
-    )
+    data.map(x => {
+
+        if(filter === 'minute'){
+
+            return x.created_at.slice(11,19)
+
+        }
+
+        else if(filter === 'hour'){
+
+            return x.created_at.slice(11,16)
+
+        }
+
+        else{
+
+            return x.created_at.slice(0,10)
+
+        }
+
+    })
 
     const suhu =
-    data.map(
-        x => x.suhu
-    )
+    data.map(x => x.suhu)
 
     const amonia =
-    data.map(
-        x => x.amonia
-    )
+    data.map(x => x.amonia)
 
     const kelembaban =
-    data.map(
-        x => x.kelembaban
-    )
+    data.map(x => x.kelembaban)
 
     const pakan =
-    data.map(
-        x => x.kapasitas_pakan
-    )
+    data.map(x => x.kapasitas_pakan)
 
     const ctx =
     document.getElementById(
         `chart-${device}`
     )
 
-    new Chart(ctx,{
+    if(charts[device]){
+
+        charts[device].destroy()
+
+    }
+
+    charts[device] = new Chart(ctx,{
 
         type:'line',
 
@@ -464,6 +747,14 @@ async function loadChart(device){
             responsive:true,
 
             maintainAspectRatio:false,
+
+            interaction:{
+
+                mode:'index',
+
+                intersect:false
+
+            },
 
             plugins:{
 
